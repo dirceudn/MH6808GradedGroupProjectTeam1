@@ -80,18 +80,18 @@ class TestBorrowerDetails(unittest.TestCase):
         self.assertEqual(GradeScore.Z.value, 26, "GradeScore Z should have value 26")
 
     @patch('builtins.input', side_effect=["123 John", "John Doe"])
-    def test_get_borrower_name_invalid(self):
+    def test_get_borrower_name_invalid(self, mock):
         result = get_borrower_full_name(INPUT_FULL_NAME_MESSAGE)
         self.assertEqual(result, "John Doe", "The function should return the valid name after invalid attempts")
 
-    @patch('builtins.input', side_effect=["John Doe"])
-    def test_get_borrower_name(self):
+    @patch('builtins.input', side_effect=["John Doe","John Doe"])
+    def test_get_borrower_name(self, mock):
         result = get_borrower_full_name(INPUT_FULL_NAME_MESSAGE)
         self.assertEqual(result, "John Doe", "The function should return the valid name immediately")
 
 class TestResult(TextTestResult):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args):
+        super().__init__(*args)
         self.test_cases = []
 
     def addSuccess(self, test):
@@ -131,7 +131,8 @@ def run_tests():
     print("Running tests...")
 
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(TestBorrowerDetails))
+    loader = unittest.TestLoader()
+    suite.addTest(loader.loadTestsFromTestCase(TestBorrowerDetails))
 
     runner = unittest.TextTestRunner(verbosity=2, resultclass=TestResult)
     result = runner.run(suite)
@@ -147,9 +148,6 @@ def run_tests():
         print("All tests passed.")
     else:
         print("Some tests failed or encountered errors.")
-
-    for test_case in result.test_cases:
-        print(test_case)
 
 def print_header():
     header = f"""
@@ -174,6 +172,8 @@ def print_header():
     print(header)
 
 INPUT_FULL_NAME_MESSAGE = "Please enter the borrower's full name: "
+INPUT_CLIENT_BANK_STATUS = "Please select the client bank's status: \n(1) New bank \n(2) Existing to a bank \n > "
+
 INVALID_NAME_MESSAGE = "Invalid full name. Please enter a valid full name (First and Last name) without numbers."
 
 
@@ -223,9 +223,11 @@ class GradeScore(Enum):
 def get_age_status(age):
     if age < 21 or age >  65: return BorrowStatus.REJECTED
 
+
 class BorrowStatus(Enum):
     ACCEPTED = auto()
     REJECTED = auto()
+    IN_PROGRESS = auto()
 
 class ClientBankStatus(Enum):
     NEW_BANK = 4
@@ -236,6 +238,19 @@ class EntityType(Enum):
     LIMITED_PARTNERSHIP = 2
     COMPANY_LIMITED = 1
 
+def validate_client_bank_status_option(option: str) -> ClientBankStatus:
+    option_map = {
+        "1": ClientBankStatus.NEW_BANK,
+        "2": ClientBankStatus.EXISTING_TO_A_BANK
+    }
+    if option in option_map:
+        return option_map[option]
+    else:
+        print("Sorry! Please Choose '1' for New bank or '2' for Existing to a bank.")
+
+def input_client_status():
+    bank_status = validate_client_bank_status_option(input(INPUT_CLIENT_BANK_STATUS))
+    return bank_status
 
 def get_guarantor_score(guarantors: int) -> int:
     if guarantors > 4:
@@ -253,11 +268,11 @@ def get_guarantor_score(guarantors: int) -> int:
 
 
 def borrow_details():
-    return ""
-
-def main():
     print_header()
     print(get_borrower_full_name(INPUT_FULL_NAME_MESSAGE))
+    input_client_status()
+
+
 if __name__ == "__main__":
     run_tests()
-    main()
+    borrow_details()
