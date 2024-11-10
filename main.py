@@ -21,13 +21,12 @@ License:
     MIT License
 """
 
-
-from enum import Enum, auto
 import re
-import unittest
-from unittest.mock import patch
 import subprocess
 import sys
+import unittest
+from enum import Enum, auto
+from unittest.mock import patch
 from unittest.runner import TextTestResult
 
 # This can be used in the future to build the gui mode
@@ -62,10 +61,10 @@ class TestBorrowerDetails(unittest.TestCase):
             self.assertFalse(validate_full_name(name), f"'{name}' should be invalid")
 
     def test_get_age_status(self):
-        self.assertEqual(get_age_status(20), BorrowStatus.REJECTED, "Age 20 should be REJECTED")
-        self.assertEqual(get_age_status(65), None, "Age 65 should be ACCEPTED")
-        self.assertEqual(get_age_status(21), None, "Age 21 should be ACCEPTED")
-        self.assertEqual(get_age_status(66), BorrowStatus.REJECTED, "Age 66 should be REJECTED")
+        self.assertEqual(invalid_guarantors_age(20), True, "Age 20 should be REJECTED")
+        self.assertEqual(invalid_guarantors_age(65), False, "Age 65 should be ACCEPTED")
+        self.assertEqual(invalid_guarantors_age(21), False, "Age 21 should be ACCEPTED")
+        self.assertEqual(invalid_guarantors_age(66), True, "Age 66 should be REJECTED")
 
     def test_get_guarantor_score(self):
         self.assertEqual(get_guarantor_score(1), 5, "1 guarantor should give a score of 5")
@@ -77,17 +76,17 @@ class TestBorrowerDetails(unittest.TestCase):
     def test_grade_score_enum(self):
         self.assertEqual(GradeScore.A.value, 1, "GradeScore A should have value 1")
         self.assertEqual(GradeScore.B.value, 2, "GradeScore B should have value 2")
-        self.assertEqual(GradeScore.Z.value, 26, "GradeScore Z should have value 26")
 
     @patch('builtins.input', side_effect=["123 John", "John Doe"])
     def test_get_borrower_name_invalid(self, mock):
-        result = get_borrower_full_name(INPUT_FULL_NAME_MESSAGE)
+        result = input_borrower_full_name()
         self.assertEqual(result, "John Doe", "The function should return the valid name after invalid attempts")
 
-    @patch('builtins.input', side_effect=["John Doe","John Doe"])
+    @patch('builtins.input', side_effect=["John Doe", "John Doe"])
     def test_get_borrower_name(self, mock):
-        result = get_borrower_full_name(INPUT_FULL_NAME_MESSAGE)
+        result = input_borrower_full_name()
         self.assertEqual(result, "John Doe", "The function should return the valid name immediately")
+
 
 class TestResult(TextTestResult):
     def __init__(self, *args):
@@ -149,10 +148,12 @@ def run_tests():
     else:
         print("Some tests failed or encountered errors.")
 
+
 def print_header():
     header = f"""
     #################################################
     #  Script: main.py
+    #  Run: python main.py
     #  Description: A credit analysis program
     #  Authors: 
     #    - Dirceu de Medeiros Teixeira
@@ -171,57 +172,29 @@ def print_header():
     """
     print(header)
 
+
 INPUT_FULL_NAME_MESSAGE = "Please enter the borrower's full name: "
+INPUT_BORROWER_HISTORY = "Please enter the borrower's borrowing history A-Z: "
+INPUT_NUMBER_OF_GUARANTORS = "Please enter the number of guarantors: "
+INPUT_AGE_OF_GUARANTORS = "Please enter age of guarantors: "
 INPUT_CLIENT_BANK_STATUS = "Please select the client bank's status: \n(1) New bank \n(2) Existing to a bank \n > "
-
+INPUT_ENTITY_TYPE = "Please select the client  entity status: \n(1) Sole Proprietorship \n(2) Limited Partnership \n(3) Company Limited \n > "
 INVALID_NAME_MESSAGE = "Invalid full name. Please enter a valid full name (First and Last name) without numbers."
+INVALID_BORROWER_HISTORY_MESSAGE = "Please enter history input A-Z or a-z format."
+INVALID_NUMBER_GUARANTOR_MESSAGE = "Please enter a number upper than zero and only numbers."
+ERROR_MESSAGE_CLIENT_BANK_STATUS = "Sorry! Please Choose '1' for New bank or '2' for Existing to a bank."
+ERROR_MESSAGE_ENTITY_TYPE = "Sorry! Please Choose \n'1' for Sole Proprietorship or \n'2' for Limited Partnership or \n'3' for Company Limited \n."
 
 
-def get_borrower_full_name(input_message):
-    while True:
-        borrower_full_name = input(input_message)
-        if validate_full_name(borrower_full_name):
-            return  borrower_full_name
-        else:
-            print(INVALID_NAME_MESSAGE)
-
-# This regex validates names with letters and spaces only, in any language
-def validate_full_name(name: str) -> bool:
-    pattern = r"^[^\W\d_]+(?: [^\W\d_]+)*$"
-    return bool(re.match(pattern, name, re.UNICODE))
+class EntityType(Enum):
+    SOLE_PROPRIETORSHIP = 3
+    LIMITED_PARTNERSHIP = 2
+    COMPANY_LIMITED = 1
 
 
-class GradeScore(Enum):
-    A = 1
-    B = 2
-    C = 3
-    D = auto()
-    E = auto()
-    F = auto()
-    G = auto()
-    H = auto()
-    I = auto()
-    J = auto()
-    K = auto()
-    L = auto()
-    M = auto()
-    N = auto()
-    O = auto()
-    P = auto()
-    Q = auto()
-    R = auto()
-    S = auto()
-    T = auto()
-    U = auto()
-    V = auto()
-    W = auto()
-    X = auto()
-    Y = auto()
-    Z = auto()
-
-
-def get_age_status(age):
-    if age < 21 or age >  65: return BorrowStatus.REJECTED
+class ClientBankStatus(Enum):
+    NEW_BANK = 4
+    EXISTING_TO_A_BANK = 2
 
 
 class BorrowStatus(Enum):
@@ -229,28 +202,81 @@ class BorrowStatus(Enum):
     REJECTED = auto()
     IN_PROGRESS = auto()
 
-class ClientBankStatus(Enum):
-    NEW_BANK = 4
-    EXISTING_TO_A_BANK = 2
 
-class EntityType(Enum):
-    SOLE_PROPRIETORSHIP = 3
-    LIMITED_PARTNERSHIP = 2
-    COMPANY_LIMITED = 1
+class Borrower:
+    def __init__(self, full_name, entity_type, bank_status, number_of_guarantors, age_of_guarantors, borrowing_history,
+                 borrower_score=0, borrower_status=BorrowStatus.IN_PROGRESS):
+        self.full_name = full_name
+        self.entity_type = entity_type
+        self.bank_status = bank_status
+        self.number_of_guarantors = number_of_guarantors
+        self.age_of_guarantors = age_of_guarantors
+        self.borrowing_history = borrowing_history
+        self.borrower_score = borrower_score
+        self.borrower_status = borrower_status
 
-def validate_client_bank_status_option(option: str) -> ClientBankStatus:
-    option_map = {
-        "1": ClientBankStatus.NEW_BANK,
-        "2": ClientBankStatus.EXISTING_TO_A_BANK
-    }
-    if option in option_map:
-        return option_map[option]
-    else:
-        print("Sorry! Please Choose '1' for New bank or '2' for Existing to a bank.")
+    def update_borrower_score(self, new_score):
+        if isinstance(new_score, int):
+            self.borrower_score += new_score
+        else:
+            print("Invalid score. Please provide an integer value.")
 
-def input_client_status():
-    bank_status = validate_client_bank_status_option(input(INPUT_CLIENT_BANK_STATUS))
-    return bank_status
+    def update_borrower_status(self, new_borrow_status):
+        self.borrower_status = new_borrow_status
+
+    def display_borrower_info(self):
+        info = (
+            f"Borrower Name: {self.full_name}\nEntity Type: {self.entity_type}\nBank Status: {self.bank_status}\n"
+            f"Number of guarantors: {self.number_of_guarantors}\nAge of guarantors: {self.age_of_guarantors}\n"
+            f"Borrowing history: {self.borrowing_history}\nBorrowing score: {self.borrower_score}\n"
+            f"Borrower status: {self.borrower_status}\n")
+        print(info)
+
+
+entity_type_dic = {"1": EntityType.SOLE_PROPRIETORSHIP,
+                   "2": EntityType.LIMITED_PARTNERSHIP,
+                   "3": EntityType.COMPANY_LIMITED}
+
+client_bank_status_dic = {
+    "1": ClientBankStatus.NEW_BANK,
+    "2": ClientBankStatus.EXISTING_TO_A_BANK}
+
+
+class GradeScore(Enum):
+    A = 1
+    B = 2
+    C = 3
+
+
+def get_grade_history_score(grade: str) -> int:
+    match grade:
+        case "A":
+            return GradeScore.A.value
+        case "B":
+            return GradeScore.B.value
+        case "C":
+            return GradeScore.C.value
+
+
+def invalid_guarantors_age(age: int) -> bool:
+    return age < 21 or age > 65
+
+
+def get_bank_status_score(bank_status: ClientBankStatus) -> int:
+    if bank_status == ClientBankStatus.NEW_BANK:
+        return 4
+    return 2
+
+
+def get_entity_type_score(entity_type: EntityType) -> int:
+    match entity_type:
+        case EntityType.SOLE_PROPRIETORSHIP:
+            return 3
+        case EntityType.LIMITED_PARTNERSHIP:
+            return 2
+        case EntityType.COMPANY_LIMITED:
+            return 1
+
 
 def get_guarantor_score(guarantors: int) -> int:
     if guarantors > 4:
@@ -267,12 +293,134 @@ def get_guarantor_score(guarantors: int) -> int:
             return 2
 
 
+# -------------------------------------- Validate functions ------------------------------------------------------------
+
+def validate_full_name(name: str) -> bool:
+    pattern = r"^[^\W\d_]+(?: [^\W\d_]+)*$"
+    return bool(re.match(pattern, name, re.UNICODE))
+
+
+def validate_borrower_history(history: str):
+    pattern = r'^[a-zA-Z]+$'
+    return bool(re.match(pattern, history))
+
+
+def get_borrow_history_status(history: str) -> BorrowStatus:
+    pattern_status = r'^[a-cA-C]+$'
+    if not re.match(pattern_status, history):
+        return BorrowStatus.REJECTED
+    else:
+        return BorrowStatus.IN_PROGRESS
+
+
+def validate_client_bank_status_option(option: str) -> bool:
+    return option in client_bank_status_dic
+
+
+def validate_number_input(number) -> bool:
+    return number.isdigit() and int(number) >= 0
+
+
+def validate_entity_type(option: str) -> bool:
+    return option in entity_type_dic
+
+
+# ---------------------------------- Input functions -------------------------------------------------------------------
+
+def input_borrower_full_name() -> str:
+    while True:
+        borrower_full_name = input(INPUT_FULL_NAME_MESSAGE)
+        if validate_full_name(borrower_full_name):
+            return borrower_full_name
+
+
+def input_borrower_borrowing_history() -> str:
+    while True:
+        borrower_borrowing_history = str(input(INPUT_BORROWER_HISTORY))
+        if validate_borrower_history(borrower_borrowing_history):
+            return borrower_borrowing_history
+        print(INVALID_BORROWER_HISTORY_MESSAGE)
+
+
+def input_client_bank_status():
+    while True:
+        bank_status = str(input(INPUT_CLIENT_BANK_STATUS))
+        if validate_client_bank_status_option(bank_status):
+            return client_bank_status_dic[bank_status]
+        print(ERROR_MESSAGE_CLIENT_BANK_STATUS)
+
+
+def input_entity_type():
+    while True:
+        entity_type = str(input(INPUT_ENTITY_TYPE))
+        if validate_entity_type(entity_type):
+            return entity_type_dic[entity_type]
+        print(ERROR_MESSAGE_ENTITY_TYPE)
+
+
+def input_number_of_guarantors() -> int:
+    while True:
+        number_guarantors = input(INPUT_NUMBER_OF_GUARANTORS)
+        if validate_number_input(number_guarantors):
+            return int(number_guarantors)
+        print(INVALID_NUMBER_GUARANTOR_MESSAGE)
+
+
+def input_age_of_guarantors() -> int:
+    while True:
+        age_guarantors = input(INPUT_AGE_OF_GUARANTORS)
+        if validate_number_input(age_guarantors):
+            return int(age_guarantors)
+        print(INVALID_NUMBER_GUARANTOR_MESSAGE)
+
+
+def get_borrow_details_status(borrower: Borrower) -> BorrowStatus:
+    entity_score = get_entity_type_score(borrower.entity_type)
+    borrower.update_borrower_score(entity_score)
+
+    bank_score = get_bank_status_score(borrower.bank_status)
+    borrower.update_borrower_score(bank_score)
+
+    if borrower.number_of_guarantors < 1:
+        borrower.update_borrower_status(BorrowStatus.REJECTED)
+        return BorrowStatus.REJECTED
+    else:
+        guarantor_score = get_guarantor_score(borrower.number_of_guarantors)
+        borrower.update_borrower_score(guarantor_score)
+
+    if invalid_guarantors_age(borrower.age_of_guarantors):
+        borrower.update_borrower_status(BorrowStatus.REJECTED)
+        return BorrowStatus.REJECTED
+
+    if get_borrow_history_status(borrower.borrowing_history) == BorrowStatus.REJECTED:
+        borrower.update_borrower_status(BorrowStatus.REJECTED)
+        return BorrowStatus.REJECTED
+    else:
+        history_score = get_grade_history_score(borrower.borrowing_history.upper())
+        borrower.update_borrower_score(history_score)  # e.g., 1 point for Grade A
+
+    return borrower.borrower_status
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+
 def borrow_details():
-    print_header()
-    print(get_borrower_full_name(INPUT_FULL_NAME_MESSAGE))
-    input_client_status()
+    borrower_full_name = input_borrower_full_name()
+    entity_type = input_entity_type()
+    client_bank_status = input_client_bank_status()
+    number_of_guarantors = input_number_of_guarantors()
+    age_of_guarantors = input_age_of_guarantors()
+    borrower_history = input_borrower_borrowing_history()
+    borrower = Borrower(borrower_full_name, entity_type, client_bank_status, number_of_guarantors, age_of_guarantors,
+                        borrower_history)
+    current_borrower_status = get_borrow_details_status(borrower)
+    if current_borrower_status == BorrowStatus.REJECTED:
+        borrower.display_borrower_info()
+    elif current_borrower_status == BorrowStatus.IN_PROGRESS:
+        print("continue to call other functions")
 
 
 if __name__ == "__main__":
     run_tests()
+    print_header()
     borrow_details()
