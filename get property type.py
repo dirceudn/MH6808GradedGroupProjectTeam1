@@ -87,7 +87,5 @@ def get_collateral_details():
         BorrowStatus = False
     else:
         BorrowStatus = get_property_status()
-
-    print(score)
-    print(BorrowStatus)
+        
     return score, BorrowStatus
