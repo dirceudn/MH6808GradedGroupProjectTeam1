@@ -87,6 +87,66 @@ class TestBorrowerDetails(unittest.TestCase):
         result = input_borrower_full_name()
         self.assertEqual(result, "John Doe", "The function should return the valid name immediately")
 
+    def test_get_grade_history_score(self):
+        self.assertEqual(get_grade_history_score("A"), 1, "Grade A should give a score of 1")
+        self.assertEqual(get_grade_history_score("B"), 2, "Grade B should give a score of 2")
+        self.assertEqual(get_grade_history_score("C"), 3, "Grade C should give a score of 3")
+
+    def test_get_bank_status_score(self):
+        self.assertEqual(get_bank_status_score(ClientBankStatus.NEW_BANK), 4, "New Bank should give a score of 4")
+        self.assertEqual(get_bank_status_score(ClientBankStatus.EXISTING_TO_A_BANK), 2,
+                         "Existing Bank should give a score of 2")
+
+    def test_get_entity_type_score(self):
+        self.assertEqual(get_entity_type_score(EntityType.SOLE_PROPRIETORSHIP), 3,
+                         "Sole Proprietorship should give a score of 3")
+        self.assertEqual(get_entity_type_score(EntityType.LIMITED_PARTNERSHIP), 2,
+                         "Limited Partnership should give a score of 2")
+        self.assertEqual(get_entity_type_score(EntityType.COMPANY_LIMITED), 1,
+                         "Company Limited should give a score of 1")
+
+    def test_get_borrow_history_status(self):
+        self.assertEqual(get_borrow_history_status("A"), BorrowStatus.IN_PROGRESS, "Grade A should not reject")
+        self.assertEqual(get_borrow_history_status("C"), BorrowStatus.IN_PROGRESS, "Grade C should not reject")
+        self.assertEqual(get_borrow_history_status("D"), BorrowStatus.REJECTED, "Grade D should be rejected")
+        self.assertEqual(get_borrow_history_status("Z"), BorrowStatus.REJECTED, "Grade Z should be rejected")
+
+    def test_validate_borrower_history(self):
+        self.assertTrue(validate_borrower_history("A"), "History 'A' should be valid")
+        self.assertTrue(validate_borrower_history("B"), "History 'B' should be valid")
+        self.assertFalse(validate_borrower_history("123"), "Numeric history should be invalid")
+        self.assertFalse(validate_borrower_history(""), "Empty history should be invalid")
+
+    def test_validate_client_bank_status_option(self):
+        self.assertTrue(validate_client_bank_status_option("1"), "Option '1' should be valid")
+        self.assertTrue(validate_client_bank_status_option("2"), "Option '2' should be valid")
+        self.assertFalse(validate_client_bank_status_option("3"), "Option '3' should be invalid")
+
+    def test_validate_number_input(self):
+        self.assertTrue(validate_number_input("5"), "Number '5' should be valid")
+        self.assertFalse(validate_number_input("-1"), "Negative numbers should be invalid")
+        self.assertFalse(validate_number_input("abc"), "Non-numeric input should be invalid")
+
+    def test_validate_entity_type(self):
+        self.assertTrue(validate_entity_type("1"), "Option '1' should be valid")
+        self.assertTrue(validate_entity_type("2"), "Option '2' should be valid")
+        self.assertTrue(validate_entity_type("3"), "Option '3' should be valid")
+        self.assertFalse(validate_entity_type("4"), "Option '4' should be invalid")
+
+    def test_get_borrow_details_status(self):
+        borrower = Borrower(
+            full_name="John Doe",
+            entity_type=EntityType.SOLE_PROPRIETORSHIP,
+            bank_status=ClientBankStatus.NEW_BANK,
+            number_of_guarantors=1,
+            age_of_guarantors=30,
+            borrowing_history="A"
+        )
+        status = get_borrow_details_status(borrower)
+        self.assertEqual(status, BorrowStatus.IN_PROGRESS, "Borrower should have IN_PROGRESS status")
+        self.assertEqual(borrower.borrower_score, 13,
+                         "Borrower score should be 13 for Sole Proprietorship, New Bank, and 1 Guarantor")
+
 
 class TestResult(TextTestResult):
     def __init__(self, *args):
@@ -183,6 +243,7 @@ INVALID_NAME_MESSAGE = "Invalid full name. Please enter a valid full name (First
 INVALID_BORROWER_HISTORY_MESSAGE = "Please enter history input A-Z or a-z format."
 INVALID_NUMBER_GUARANTOR_MESSAGE = "Please enter a number upper than zero and only numbers."
 ERROR_MESSAGE_CLIENT_BANK_STATUS = "Sorry! Please Choose '1' for New bank or '2' for Existing to a bank."
+ERROR_UPDATE_SCORE_MESSAGE = "Invalid score. Please provide an integer value."
 ERROR_MESSAGE_ENTITY_TYPE = "Sorry! Please Choose \n'1' for Sole Proprietorship or \n'2' for Limited Partnership or \n'3' for Company Limited \n."
 
 
@@ -219,7 +280,7 @@ class Borrower:
         if isinstance(new_score, int):
             self.borrower_score += new_score
         else:
-            print("Invalid score. Please provide an integer value.")
+            print(ERROR_UPDATE_SCORE_MESSAGE)
 
     def update_borrower_status(self, new_borrow_status):
         self.borrower_status = new_borrow_status
@@ -397,7 +458,7 @@ def get_borrow_details_status(borrower: Borrower) -> BorrowStatus:
         return BorrowStatus.REJECTED
     else:
         history_score = get_grade_history_score(borrower.borrowing_history.upper())
-        borrower.update_borrower_score(history_score)  # e.g., 1 point for Grade A
+        borrower.update_borrower_score(history_score)
 
     return borrower.borrower_status
 
