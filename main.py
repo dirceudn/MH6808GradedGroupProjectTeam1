@@ -106,10 +106,10 @@ class TestBorrowerDetails(unittest.TestCase):
                          "Company Limited should give a score of 1")
 
     def test_get_borrow_history_status(self):
-        self.assertEqual(get_borrow_history_status("A"), BorrowStatus.IN_PROGRESS, "Grade A should not reject")
-        self.assertEqual(get_borrow_history_status("C"), BorrowStatus.IN_PROGRESS, "Grade C should not reject")
-        self.assertEqual(get_borrow_history_status("D"), BorrowStatus.REJECTED, "Grade D should be rejected")
-        self.assertEqual(get_borrow_history_status("Z"), BorrowStatus.REJECTED, "Grade Z should be rejected")
+        self.assertEqual(invalid_borrow_history_grade("A"), False, "Grade A should not reject")
+        self.assertEqual(invalid_borrow_history_grade("C"), False, "Grade C should not reject")
+        self.assertEqual(invalid_borrow_history_grade("D"), True, "Grade D should be rejected")
+        self.assertEqual(invalid_borrow_history_grade("Z"), True, "Grade Z should be rejected")
 
     def test_validate_borrower_history(self):
         self.assertTrue(validate_borrower_history("A"), "History 'A' should be valid")
@@ -233,6 +233,7 @@ def print_header():
     print(header)
 
 
+MIN_BORROWER_INFO_SCORE = 15
 INPUT_FULL_NAME_MESSAGE = "Please enter the borrower's full name: "
 INPUT_BORROWER_HISTORY = "Please enter the borrower's borrowing history A-Z: "
 INPUT_NUMBER_OF_GUARANTORS = "Please enter the number of guarantors: "
@@ -276,22 +277,37 @@ class Borrower:
         self.borrower_score = borrower_score
         self.borrower_status = borrower_status
 
-    def update_borrower_score(self, new_score):
-        if isinstance(new_score, int):
-            self.borrower_score += new_score
-        else:
-            print(ERROR_UPDATE_SCORE_MESSAGE)
+    def update_borrower_score(self):
+        if invalid_guarantors_age(
+                self.age_of_guarantors) or self.number_of_guarantors < 1 or invalid_borrow_history_grade(
+            self.borrowing_history):
+            self.borrower_status = BorrowStatus.REJECTED
+
+        self.borrower_score = (
+                get_entity_type_score(self.entity_type) +
+                get_bank_status_score(self.bank_status) +
+                get_guarantor_score(self.number_of_guarantors) +
+                get_grade_history_score(self.borrowing_history.upper())
+        )
+        if self.borrower_score >= MIN_BORROWER_INFO_SCORE:
+            self.borrower_status = BorrowStatus.REJECTED
 
     def update_borrower_status(self, new_borrow_status):
         self.borrower_status = new_borrow_status
 
     def display_borrower_info(self):
-        info = (
-            f"Borrower Name: {self.full_name}\nEntity Type: {self.entity_type}\nBank Status: {self.bank_status}\n"
-            f"Number of guarantors: {self.number_of_guarantors}\nAge of guarantors: {self.age_of_guarantors}\n"
-            f"Borrowing history: {self.borrowing_history}\nBorrowing score: {self.borrower_score}\n"
-            f"Borrower status: {self.borrower_status}\n")
-        print(info)
+        info = {
+            "Full Name": self.full_name,
+            "Entity Type": self.entity_type.name,
+            "Bank Status": self.bank_status.name,
+            "Number of Guarantors": self.number_of_guarantors,
+            "Age of Guarantors": self.age_of_guarantors,
+            "Borrowing History": self.borrowing_history,
+            "Borrower Score": self.borrower_score,
+            "Status": self.borrower_status.name
+        }
+        for key, value in info.items():
+            print(f"{key}: {value}")
 
 
 entity_type_dic = {"1": EntityType.SOLE_PROPRIETORSHIP,
@@ -340,7 +356,7 @@ def get_entity_type_score(entity_type: EntityType) -> int:
 
 
 def get_guarantor_score(guarantors: int) -> int:
-    if guarantors > 4:
+    if guarantors > 4 or guarantors == 0:
         return 1
 
     match guarantors:
@@ -366,12 +382,9 @@ def validate_borrower_history(history: str):
     return bool(re.match(pattern, history))
 
 
-def get_borrow_history_status(history: str) -> BorrowStatus:
+def invalid_borrow_history_grade(history: str) -> bool:
     pattern_status = r'^[a-cA-C]+$'
-    if not re.match(pattern_status, history):
-        return BorrowStatus.REJECTED
-    else:
-        return BorrowStatus.IN_PROGRESS
+    return not re.match(pattern_status, history)
 
 
 def validate_client_bank_status_option(option: str) -> bool:
@@ -436,30 +449,7 @@ def input_age_of_guarantors() -> int:
 
 
 def get_borrow_details_status(borrower: Borrower) -> BorrowStatus:
-    entity_score = get_entity_type_score(borrower.entity_type)
-    borrower.update_borrower_score(entity_score)
-
-    bank_score = get_bank_status_score(borrower.bank_status)
-    borrower.update_borrower_score(bank_score)
-
-    if borrower.number_of_guarantors < 1:
-        borrower.update_borrower_status(BorrowStatus.REJECTED)
-        return BorrowStatus.REJECTED
-    else:
-        guarantor_score = get_guarantor_score(borrower.number_of_guarantors)
-        borrower.update_borrower_score(guarantor_score)
-
-    if invalid_guarantors_age(borrower.age_of_guarantors):
-        borrower.update_borrower_status(BorrowStatus.REJECTED)
-        return BorrowStatus.REJECTED
-
-    if get_borrow_history_status(borrower.borrowing_history) == BorrowStatus.REJECTED:
-        borrower.update_borrower_status(BorrowStatus.REJECTED)
-        return BorrowStatus.REJECTED
-    else:
-        history_score = get_grade_history_score(borrower.borrowing_history.upper())
-        borrower.update_borrower_score(history_score)
-
+    borrower.update_borrower_score()
     return borrower.borrower_status
 
 
@@ -474,11 +464,8 @@ def borrow_details():
     borrower_history = input_borrower_borrowing_history()
     borrower = Borrower(borrower_full_name, entity_type, client_bank_status, number_of_guarantors, age_of_guarantors,
                         borrower_history)
-    current_borrower_status = get_borrow_details_status(borrower)
-    if current_borrower_status == BorrowStatus.REJECTED:
-        borrower.display_borrower_info()
-    elif current_borrower_status == BorrowStatus.IN_PROGRESS:
-        print("continue to call other functions")
+    get_borrow_details_status(borrower)
+    borrower.display_borrower_info()
 
 
 if __name__ == "__main__":
