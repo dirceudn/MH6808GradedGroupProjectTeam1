@@ -22,15 +22,10 @@ License:
 """
 
 import re
-import subprocess
-import sys
 import unittest
 from enum import Enum, auto
 from unittest.mock import patch
 from unittest.runner import TextTestResult
-
-# This can be used in the future to build the gui mode
-REQUIRED_MODULES = ['streamlit', 'pandas']  # Add more modules as needed
 
 
 class TestBorrowerDetails(unittest.TestCase):
@@ -133,20 +128,105 @@ class TestBorrowerDetails(unittest.TestCase):
         self.assertTrue(validate_entity_type("3"), "Option '3' should be valid")
         self.assertFalse(validate_entity_type("4"), "Option '4' should be invalid")
 
-    def test_get_borrow_details_status(self):
-        borrower = Borrower(
-            full_name="John Doe",
-            entity_type=EntityType.SOLE_PROPRIETORSHIP,
-            bank_status=ClientBankStatus.NEW_BANK,
-            number_of_guarantors=1,
-            age_of_guarantors=30,
-            borrowing_history="A"
-        )
-        status = get_borrow_details_status(borrower)
-        self.assertEqual(status, BorrowStatus.IN_PROGRESS, "Borrower should have IN_PROGRESS status")
-        self.assertEqual(borrower.borrower_score, 13,
-                         "Borrower score should be 13 for Sole Proprietorship, New Bank, and 1 Guarantor")
+    def test_validate_property_type(self):
+        self.assertTrue(validate_property_type("1"), "Option '1' should be valid")
+        self.assertTrue(validate_property_type("2"), "Option '2' should be valid")
+        self.assertFalse(validate_property_type("5"), "Option '5' should be invalid")
 
+    def test_validate_property_location(self):
+        self.assertTrue(validate_property_location("1"), "Option '1' should be valid")
+        self.assertTrue(validate_property_location("2"), "Option '2' should be valid")
+        self.assertFalse(validate_property_location("4"), "Option '4' should be invalid")
+
+    def test_validate_property_status_input(self):
+        self.assertTrue(validate_property_status_input("1"), "Option '1' should be valid")
+        self.assertTrue(validate_property_status_input("2"), "Option '2' should be valid")
+        self.assertFalse(validate_property_status_input("3"), "Option '3' should be invalid")
+
+    def test_validate_type_of_facility_applying_input(self):
+        self.assertTrue(validate_type_of_facility_applying_input("1"), "Option '1' should be valid")
+        self.assertTrue(validate_type_of_facility_applying_input("2"), "Option '2' should be valid")
+        self.assertFalse(validate_type_of_facility_applying_input("3"), "Option '3' should be invalid")
+
+    def test_get_debt_to_sales_ratio(self):
+        self.assertAlmostEqual(get_debt_to_sales_ratio(50000, 100000), 50.0, msg="Ratio should be 50.0%")
+        self.assertAlmostEqual(get_debt_to_sales_ratio(20000, 50000), 40.0, msg="Ratio should be 40.0%")
+
+    def test_get_loan_to_valuation(self):
+        self.assertAlmostEqual(get_loan_to_valuation_ratio(50000, 100000), 50.0, msg="Ratio should be 50.0%")
+        self.assertAlmostEqual(get_loan_to_valuation_ratio(20000, 50000), 40.0, msg="Ratio should be 40.0%")
+
+    def test_get_debt_to_income_ratio(self):
+        self.assertAlmostEqual(get_debt_to_income_ratio(50000, 100000), 50.0, msg="Ratio should be 50.0%")
+        self.assertAlmostEqual(get_debt_to_income_ratio(20000, 50000), 40.0, msg="Ratio should be 40.0%")
+
+    def test_get_debt_sales_ratio_score(self):
+        self.assertEqual(get_debt_sales_ratio_score(75), 0, "Ratio > 70% should return 0")
+        self.assertEqual(get_debt_sales_ratio_score(65), 4, "Ratio between 60-70% should return 4")
+        self.assertEqual(get_debt_sales_ratio_score(50), 3, "Ratio between 50-59% should return 3")
+        self.assertEqual(get_debt_sales_ratio_score(30), 1, "Ratio < 40% should return 1")
+
+    def test_get_to_income_ratio_score(self):
+        self.assertEqual(get_to_income_ratio_score(60), 0, "Ratio > 55% should return 0")
+        self.assertEqual(get_to_income_ratio_score(50), 3, "Ratio between 35-55% should return 3")
+        self.assertEqual(get_to_income_ratio_score(20), 1, "Ratio < 35% should return 1")
+
+    def test_get_loan_to_valuation_ratio_score(self):
+        self.assertEqual(get_loan_to_valuation_ratio_score(85), 0, "Ratio > 80% should return 0")
+        self.assertEqual(get_loan_to_valuation_ratio_score(75), 2, "Ratio between 60-79% should return 2")
+        self.assertEqual(get_loan_to_valuation_ratio_score(50), 1, "Ratio < 60% should return 1")
+
+    def test_calculate_score_and_update_status(self):
+        borrower_credit_analysis = BorrowerCreditAnalysis()
+
+        borrower_credit_analysis.get_borrower_information_details_score = lambda: 10
+        borrower_credit_analysis.get_financial_details_score = lambda: 5
+        borrower_credit_analysis.get_collateral_details_score = lambda: 3
+        borrower_credit_analysis.get_facility_details_score = lambda: 3
+        borrower_credit_analysis.min_total_credit_score = 20
+
+        borrower_credit_analysis.calculate_score_and_update_status()
+        self.assertEqual(
+            borrower_credit_analysis.borrower_analysis_status, BorrowStatus.REJECTED,
+            "Score >= min_total_credit_score should set status to REJECTED"
+        )
+
+        borrower_credit_analysis.get_borrower_information_details_score = lambda: 9
+        borrower_credit_analysis.get_financial_details_score = lambda: 5
+        borrower_credit_analysis.get_collateral_details_score = lambda: 3
+        borrower_credit_analysis.get_facility_details_score = lambda: 2
+
+        borrower_credit_analysis.calculate_score_and_update_status()
+        self.assertEqual(
+            borrower_credit_analysis.borrower_analysis_status, BorrowStatus.ACCEPTED,
+            "Score < min_total_credit_score should set status to ACCEPTED"
+        )
+
+    def test_display_rejection_reasons(self):
+        borrower_credit_analysis = BorrowerCreditAnalysis()
+        borrower_credit_analysis.rejection_reasons.append("Debt-to-sales ratio exceeds 70%.")
+        self.assertIn("Debt-to-sales ratio exceeds 70%.", borrower_credit_analysis.get_rejection_results()['rejection_reasons'])
+
+    @patch('builtins.input', side_effect=["50000", "100000", "200000"])
+    def test_financial_details_inputs(self, mock_input):
+        details = financial_details()
+        self.assertEqual(details[0], 50000, "Total debt input mismatch")
+        self.assertEqual(details[1], 100000, "Gross income input mismatch")
+        self.assertEqual(details[2], 200000, "Total sales input mismatch")
+
+    @patch('builtins.input', side_effect=["1", "2", "3", "4"])
+    def test_property_inputs(self, mock_input):
+        location_of_property = input_location_of_property()
+        self.assertEqual(location_of_property, property_location_dic["1"], "Location property input mismatch")
+
+        type_of_property = input_type_of_property()
+        self.assertEqual(type_of_property, property_type_dic["2"], "Property type input mismatch")
+
+    @patch('builtins.input', side_effect=["1", "50000", "75000"])
+    def test_facility_inputs(self, mock_input):
+        type_of_facility, applied_loan_amount = facility_details()
+        self.assertEqual(type_of_facility, type_of_facility_applying_dic["1"], "Facility type mismatch")
+        self.assertEqual(applied_loan_amount, 50000, "Loan amount mismatch")
 
 class TestResult(TextTestResult):
     def __init__(self, *args):
@@ -168,18 +248,6 @@ class TestResult(TextTestResult):
     def addSkip(self, test, reason):
         super().addSkip(test, reason)
         self.test_cases.append(f"{test} - SKIPPED")
-
-
-def install_missing_modules():
-    """
-    Install missing modules automatically using pip.
-    """
-    for module in REQUIRED_MODULES:
-        try:
-            __import__(module)
-        except ImportError:
-            print(f"{module} is not installed. Installing...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", module])
 
 
 def run_tests():
@@ -221,7 +289,7 @@ def print_header():
     #    - Kelvin Thein
     #    - Melani Sugiharti The
     #  Date Created: 2024-11-05
-    #  Last Modified: 2024-11-05
+    #  Last Modified: 2024-11-15
     #  Version: 1.0
     ##################################################
     ##################################################
@@ -234,15 +302,79 @@ def print_header():
 
 
 MIN_BORROWER_INFO_SCORE = 15
+
 INPUT_FULL_NAME_MESSAGE = "Please enter the borrower's full name: "
 INPUT_BORROWER_HISTORY = "Please enter the borrower's borrowing history A-Z: "
 INPUT_NUMBER_OF_GUARANTORS = "Please enter the number of guarantors: "
 INPUT_AGE_OF_GUARANTORS = "Please enter age of guarantors: "
-INPUT_CLIENT_BANK_STATUS = "Please select the client bank's status: \n(1) New bank \n(2) Existing to a bank \n > "
-INPUT_ENTITY_TYPE = "Please select the client  entity status: \n(1) Sole Proprietorship \n(2) Limited Partnership \n(3) Company Limited \n > "
+INPUT_TOTAL_DEBT_MESSAGE = "Please enter current total debt: "
+INPUT_APPLIED_LOAN_AMOUNT = "Please enter the applied loan amount: "
+INPUT_TOTAL_SALES_PER_YEAR = "Please enter total sales per year: "
+INPUT_CURRENT_MARKET_VALUE = "Please Current Market Value (CMV): "
+INPUT_PROPERTY_TYPE = '''
+Please select a property type:
+    
+(1) Residential Landed
+(2) Residential Apartment
+(3) Commercial
+(4) Others
+
+Enter the number corresponding to your choice (1-4): '''
+
+INPUT_PROPERTY_LOCATION_TYPE = '''
+Please select a property location type:
+
+(1) Central Area
+(2) Urban
+(3) Suburban
+
+Enter the number corresponding to your choice (1-3): '''
+
+INPUT_TYPE_OF_FACILITY_APPLYING = '''
+Please select a type of facility applying:
+
+(1) Revolving Credit
+(2) Term loan
+
+Enter the number corresponding to your choice (1-2): '''
+
+INPUT_CURRENT_PROPERTY_STATUS = '''
+Please select your property status:
+
+(1) Under construction
+(2) Completed
+
+Enter the number corresponding to your choice (1-2): '''
+
+INPUT_ENTITY_TYPE = '''
+Please select the client  entity status::
+
+(1) Sole Proprietorship
+(2) Limited Partnership
+(3) Company Limited
+
+Enter the number corresponding to your choice (1-3): '''
+
+INPUT_CLIENT_BANK_STATUS = '''
+Please select the client bank's status:
+
+(1) New bank
+(2) Existing to a bank
+
+Enter the number corresponding to your choice (1-2): '''
+
+INPUT_GROSS_INCOME_MESSAGE = "Please enter total income: "
+INVALID_TYPE_OF_FACILITY_APPLYING_MESSAGE = " Enter the number corresponding to your choice (1-2)"
+INVALID_PROPERTY_LOCATION_TYPE_MESSAGE = "Enter the number corresponding to your choice (1-3)"
+INVALID_TYPE_PROPERTY_MESSAGE = "Enter the number corresponding to your choice (1-4)"
 INVALID_NAME_MESSAGE = "Invalid full name. Please enter a valid full name (First and Last name) without numbers."
 INVALID_BORROWER_HISTORY_MESSAGE = "Please enter history input A-Z or a-z format."
-INVALID_NUMBER_GUARANTOR_MESSAGE = "Please enter a number upper than zero and only numbers."
+INVALID_NUMBER_GUARANTOR_MESSAGE = "Please enter a guarantor number upper than zero and only numbers."
+INVALID_TOTAL_DEBT_MESSAGE = "Please enter a debt number upper than zero and only numbers."
+INVALID_TOTAL_INCOME_MESSAGE = "Please enter income a number upper than zero and only numbers."
+INVALID_APPLIED_LOAN_AMOUNT_MESSAGE = "Please enter applied loan amount a number upper than zero and only numbers."
+INVALID_CURRENT_MARKET_VALUE = "Please enter current market value (CVM) a number upper than zero and only numbers."
+INVALID_TOTAL_SALES_PER_YEAR_MESSAGE = "Please enter total sales per year a number upper than zero and only numbers."
 ERROR_MESSAGE_CLIENT_BANK_STATUS = "Sorry! Please Choose '1' for New bank or '2' for Existing to a bank."
 ERROR_UPDATE_SCORE_MESSAGE = "Invalid score. Please provide an integer value."
 ERROR_MESSAGE_ENTITY_TYPE = "Sorry! Please Choose \n'1' for Sole Proprietorship or \n'2' for Limited Partnership or \n'3' for Company Limited \n."
@@ -252,6 +384,19 @@ class EntityType(Enum):
     SOLE_PROPRIETORSHIP = 3
     LIMITED_PARTNERSHIP = 2
     COMPANY_LIMITED = 1
+
+
+class LocationProperty(Enum):
+    URBAN = 3
+    SUBURBAN = 2
+    CENTRAL_AREA = 1
+
+
+class TypeProperty(Enum):
+    OTHER = 4
+    COMMERCIAL = 3
+    RESIDENTIAL_APARTMENT = 2
+    RESIDENTIAL_LANDED = 1
 
 
 class ClientBankStatus(Enum):
@@ -265,58 +410,261 @@ class BorrowStatus(Enum):
     IN_PROGRESS = auto()
 
 
+class CurrentPropertyStatus(Enum):
+    UNDER_CONSTRUCTION = auto()
+    COMPLETED = auto()
+
+
+class TypeFacilityApplying(Enum):
+    REVOLVING_CREDIT = 2
+    TERM_LOAN = 1
+
+
+class FinancialDetails:
+    def __init__(self, current_total_debt, gross_income, total_sales_per_year, debt_to_sales_ration,
+                 debt_to_income_ratio):
+        self.current_total_debt = current_total_debt
+        self.gross_income = gross_income
+        self.total_sales_per_year = total_sales_per_year
+        self.debt_to_sales_ration = debt_to_sales_ration
+        self.debt_to_income_ratio = debt_to_income_ratio
+
+
+class CollateralDetails:
+    def __init__(self, current_market_value, type_of_property: TypeProperty, current_property_status,
+                 location_of_the_property: LocationProperty):
+        self.current_market_value = current_market_value
+        self.type_of_property = type_of_property
+        self.current_property_status = current_property_status
+        self.location_of_the_property = location_of_the_property
+
+
+class FacilityDetails:
+    def __init__(self, type_of_facility_applying: TypeFacilityApplying, applied_loan_amount,
+                 loan_to_valuation):
+        self.type_of_facility_applying = type_of_facility_applying
+        self.applied_loan_amount = applied_loan_amount
+        self.loan_to_valuation = loan_to_valuation
+
+
 class Borrower:
-    def __init__(self, full_name, entity_type, bank_status, number_of_guarantors, age_of_guarantors, borrowing_history,
-                 borrower_score=0, borrower_status=BorrowStatus.IN_PROGRESS):
+    def __init__(self, full_name, entity_type, bank_status, number_of_guarantors, age_of_guarantors, borrowing_history):
         self.full_name = full_name
         self.entity_type = entity_type
         self.bank_status = bank_status
         self.number_of_guarantors = number_of_guarantors
         self.age_of_guarantors = age_of_guarantors
         self.borrowing_history = borrowing_history
-        self.borrower_score = borrower_score
-        self.borrower_status = borrower_status
 
-    def update_borrower_score(self):
-        if invalid_guarantors_age(
-                self.age_of_guarantors) or self.number_of_guarantors < 1 or invalid_borrow_history_grade(
-            self.borrowing_history):
-            self.borrower_status = BorrowStatus.REJECTED
 
-        self.borrower_score = (
-                get_entity_type_score(self.entity_type) +
-                get_bank_status_score(self.bank_status) +
-                get_guarantor_score(self.number_of_guarantors) +
-                get_grade_history_score(self.borrowing_history.upper())
-        )
-        if self.borrower_score >= MIN_BORROWER_INFO_SCORE:
-            self.borrower_status = BorrowStatus.REJECTED
+class BorrowerCreditAnalysis:
+    def __init__(self, borrower_information_details: Borrower = None,
+                 borrower_financial_details: FinancialDetails = None,
+                 borrower_collateral_detail: CollateralDetails = None,
+                 borrower_facility_details: FacilityDetails = None,
+                 borrower_analysis_status=BorrowStatus.IN_PROGRESS,
+                 borrower_analysis_score=0, min_borrow_info_score=15, min_financial_details_score=7,
+                 min_collateral_score=5,
+                 min_facility_score=4,
+                 min_total_credit_score=20,
+                 total_credit_score=0):
+        self.borrower_information_details = borrower_information_details
+        self.borrower_financial_details = borrower_financial_details
+        self.borrower_collateral_detail = borrower_collateral_detail
+        self.borrower_facility_details = borrower_facility_details
+        self.borrower_analysis_status = borrower_analysis_status
+        self.borrower_analysis_score = borrower_analysis_score
+        self.min_borrow_info_score = min_borrow_info_score
+        self.min_financial_details_score = min_financial_details_score
+        self.min_collateral_score = min_collateral_score
+        self.min_facility_score = min_facility_score
+        self.min_total_credit_score = min_total_credit_score
+        self.total_credit_score = total_credit_score
+        self.rejection_reasons = []
 
-    def update_borrower_status(self, new_borrow_status):
-        self.borrower_status = new_borrow_status
+    def get_borrower_information_details_score(self):
+        if self.borrower_information_details is not None:
+            if invalid_guarantors_age(
+                    self.borrower_information_details.age_of_guarantors) or self.borrower_information_details.number_of_guarantors < 1 or invalid_borrow_history_grade(
+                self.borrower_information_details.borrowing_history):
+                self.borrower_analysis_status = BorrowStatus.REJECTED
+            borrower_score = (
+                    get_entity_type_score(self.borrower_information_details.entity_type) +
+                    get_bank_status_score(self.borrower_information_details.bank_status) +
+                    get_guarantor_score(self.borrower_information_details.number_of_guarantors) +
+                    get_grade_history_score(self.borrower_information_details.borrowing_history.upper())
+            )
+            if invalid_guarantors_age(self.borrower_information_details.age_of_guarantors):
+                self.rejection_reasons.append("Guarantor age is invalid (either below 21 or above 65).")
+            if self.borrower_information_details.number_of_guarantors < 1:
+                self.rejection_reasons.append("No guarantors provided.")
+            if borrower_score >= self.min_borrow_info_score:
+                self.borrower_analysis_status = BorrowStatus.REJECTED
 
-    def display_borrower_info(self):
-        info = {
-            "Full Name": self.full_name,
-            "Entity Type": self.entity_type.name,
-            "Bank Status": self.bank_status.name,
-            "Number of Guarantors": self.number_of_guarantors,
-            "Age of Guarantors": self.age_of_guarantors,
-            "Borrowing History": self.borrowing_history,
-            "Borrower Score": self.borrower_score,
-            "Status": self.borrower_status.name
+            return borrower_score
+        return 0
+
+    def get_financial_details_score(self):
+        if self.borrower_financial_details is not None:
+            debt_to_sales_ratio = get_debt_to_sales_ratio(self.borrower_financial_details.current_total_debt,
+                                                          self.borrower_financial_details.total_sales_per_year)
+            debt_to_income_ratio = get_debt_to_income_ratio(self.borrower_financial_details.current_total_debt,
+                                                            self.borrower_financial_details.gross_income)
+
+            current_debt_sales_ratio_score = get_debt_sales_ratio_score(debt_to_sales_ratio)
+            current_debt_to_income_score = get_to_income_ratio_score(debt_to_income_ratio)
+            if debt_to_sales_ratio > 70:
+                self.rejection_reasons.append("Debt-to-sales ratio exceeds 70%.")
+            if debt_to_income_ratio > 55:
+                self.rejection_reasons.append("Debt-to-income ratio exceeds 55%.")
+            if current_debt_sales_ratio_score == 0 or current_debt_to_income_score == 0:
+                self.borrower_analysis_status = BorrowStatus.REJECTED
+            financial_details_score = (current_debt_sales_ratio_score + current_debt_to_income_score)
+            if financial_details_score >= self.min_financial_details_score:
+                self.borrower_analysis_status = BorrowStatus.REJECTED
+            return financial_details_score
+        return 0
+
+    def get_collateral_details_score(self):
+        if self.borrower_collateral_detail is not None:
+            if self.borrower_collateral_detail.current_property_status == CurrentPropertyStatus.UNDER_CONSTRUCTION:
+                self.rejection_reasons.append("Property is under construction.")
+                self.borrower_analysis_status = BorrowStatus.REJECTED
+            total_collateral_details_score = (int(self.borrower_collateral_detail.type_of_property.value) + int(
+                self.borrower_collateral_detail.location_of_the_property.value))
+            if total_collateral_details_score >= self.min_collateral_score:
+                self.borrower_analysis_status = BorrowStatus.REJECTED
+            return total_collateral_details_score
+        return 0
+
+    def get_facility_details_score(self):
+        if self.borrower_facility_details is not None:
+            loan_to_valuation_score = get_loan_to_valuation_ratio_score(
+                get_loan_to_valuation_ratio(self.borrower_facility_details.applied_loan_amount,
+                                            self.borrower_collateral_detail.current_market_value))
+            if loan_to_valuation_score == 0:
+                self.rejection_reasons.append("Loan-to-valuation ratio exceeds 80%.")
+                self.borrower_analysis_status = BorrowStatus.REJECTED
+            total_facility_details_score = (
+                    int(self.borrower_facility_details.type_of_facility_applying.value) + loan_to_valuation_score)
+            if total_facility_details_score >= self.min_facility_score:
+                self.borrower_analysis_status = BorrowStatus.REJECTED
+            return total_facility_details_score
+        return 0
+
+    def calculate_score_and_update_status(self):
+        # borrow details
+        borrower_details_score = self.get_borrower_information_details_score()
+
+        # financial details
+        total_financial_details_score = self.get_financial_details_score()
+
+        # collateral details
+        total_collateral_details_score = self.get_collateral_details_score()
+
+        # facility details
+        total_facility_details_score = self.get_facility_details_score()
+
+        self.total_credit_score = borrower_details_score + total_financial_details_score + total_collateral_details_score + total_facility_details_score
+        if self.total_credit_score >= self.min_total_credit_score:
+            self.borrower_analysis_status = BorrowStatus.REJECTED
+        else:
+            self.borrower_analysis_status = BorrowStatus.ACCEPTED
+
+        return self.total_credit_score
+
+    def get_rejection_results(self):
+        return {"rejection_reasons": self.rejection_reasons}
+
+    @staticmethod
+    def display_section(section_title, details):
+        print("=" * 50)
+        print(f" {section_title} ".center(50, "="))
+        for label, value in details.items():
+            print(f"{label:<30}: {value}")
+        print("-" * 50)
+
+    def borrower_details_summary(self):
+        details = {
+            "Full Name": self.borrower_information_details.full_name,
+            "Entity Type": self.borrower_information_details.entity_type.name,
+            "Bank Status": self.borrower_information_details.bank_status.name,
+            "Number of Guarantors": self.borrower_information_details.number_of_guarantors,
+            "Age of Guarantors": self.borrower_information_details.age_of_guarantors,
+            "Borrowing History": self.borrower_information_details.borrowing_history,
+            "Borrower Score": self.get_borrower_information_details_score(),
         }
-        for key, value in info.items():
-            print(f"{key}: {value}")
+        self.display_section("Borrower Financial Analysis Summary", details)
+
+    def financial_details_summary(self):
+        details = {
+            "Current Total Debt": self.borrower_financial_details.current_total_debt,
+            "Gross Income": self.borrower_financial_details.gross_income,
+            "Total Sales per Year": self.borrower_financial_details.total_sales_per_year,
+            "Debt to Income Ratio": self.borrower_financial_details.debt_to_income_ratio,
+            "Financial Score": self.get_financial_details_score(),
+        }
+        self.display_section("Financial Details", details)
+
+    def collateral_details_summary(self):
+        details = {
+            "Current Market Value (CVM)": self.borrower_collateral_detail.current_market_value,
+            "Type of Property": self.borrower_collateral_detail.type_of_property,
+            "Location of Property": self.borrower_collateral_detail.location_of_the_property,
+            "Collateral Score": self.get_collateral_details_score(),
+        }
+        self.display_section("Collateral Details", details)
+
+    def facility_details_summary(self):
+        details = {
+            "Type of Facility Applying": self.borrower_facility_details.type_of_facility_applying,
+            "Applied Loan Amount": self.borrower_facility_details.applied_loan_amount,
+            "Loan to Valuation": self.borrower_facility_details.loan_to_valuation,
+            "Facility Score": self.get_facility_details_score(),
+        }
+        self.display_section("Facility Details", details)
+
+    def loan_status(self):
+        details = {
+            "Loan Application Status": self.borrower_analysis_status.name,
+        }
+        result = {
+            "Total Credit Analysis Score": self.total_credit_score
+        }
+        self.display_section("Status", details)
+        self.display_section("Total Score", result)
+
+    def display_credit_analysis_result(self):
+        self.borrower_details_summary()
+        self.financial_details_summary()
+        self.collateral_details_summary()
+        self.facility_details_summary()
+        self.loan_status()
 
 
 entity_type_dic = {"1": EntityType.SOLE_PROPRIETORSHIP,
                    "2": EntityType.LIMITED_PARTNERSHIP,
                    "3": EntityType.COMPANY_LIMITED}
 
+property_type_dic = {"1": TypeProperty.RESIDENTIAL_LANDED,
+                     "2": TypeProperty.RESIDENTIAL_APARTMENT,
+                     "3": TypeProperty.COMMERCIAL,
+                     "4": TypeProperty.OTHER}
+
+property_location_dic = {"1": LocationProperty.CENTRAL_AREA,
+                         "2": LocationProperty.URBAN,
+                         "3": LocationProperty.SUBURBAN}
+
+current_property_status_dic = {"1": CurrentPropertyStatus.UNDER_CONSTRUCTION,
+                               "2": CurrentPropertyStatus.COMPLETED}
+
 client_bank_status_dic = {
     "1": ClientBankStatus.NEW_BANK,
     "2": ClientBankStatus.EXISTING_TO_A_BANK}
+
+type_of_facility_applying_dic = {
+    "1": TypeFacilityApplying.REVOLVING_CREDIT,
+    "2": TypeFacilityApplying.TERM_LOAN}
 
 
 class GradeScore(Enum):
@@ -333,6 +681,7 @@ def get_grade_history_score(grade: str) -> int:
             return GradeScore.B.value
         case "C":
             return GradeScore.C.value
+    return 0
 
 
 def invalid_guarantors_age(age: int) -> bool:
@@ -399,6 +748,22 @@ def validate_entity_type(option: str) -> bool:
     return option in entity_type_dic
 
 
+def validate_property_type(option: str) -> bool:
+    return option in property_type_dic
+
+
+def validate_property_location(option: str) -> bool:
+    return option in property_location_dic
+
+
+def validate_property_status_input(option: str) -> bool:
+    return option in current_property_status_dic
+
+
+def validate_type_of_facility_applying_input(option: str) -> bool:
+    return option in type_of_facility_applying_dic
+
+
 # ---------------------------------- Input functions -------------------------------------------------------------------
 
 def input_borrower_full_name() -> str:
@@ -448,12 +813,205 @@ def input_age_of_guarantors() -> int:
         print(INVALID_NUMBER_GUARANTOR_MESSAGE)
 
 
-def get_borrow_details_status(borrower: Borrower) -> BorrowStatus:
-    borrower.update_borrower_score()
-    return borrower.borrower_status
+def input_current_total_debt():
+    while True:
+        total_debt_input = input(INPUT_TOTAL_DEBT_MESSAGE)
+        if validate_number_input(total_debt_input):
+            return int(total_debt_input)
+        print(INVALID_TOTAL_DEBT_MESSAGE)
+
+
+def input_gross_income():
+    while True:
+        total_debt_input = input(INPUT_GROSS_INCOME_MESSAGE)
+        if validate_number_input(total_debt_input):
+            return int(total_debt_input)
+        print(INVALID_TOTAL_INCOME_MESSAGE)
+
+
+def input_applied_loan_amount():
+    while True:
+        loan_amount = input(INPUT_APPLIED_LOAN_AMOUNT)
+        if validate_number_input(loan_amount):
+            return int(loan_amount)
+        print(INVALID_APPLIED_LOAN_AMOUNT_MESSAGE)
+
+
+def input_total_sales_per_year():
+    while True:
+        total_debt_input = input(INPUT_TOTAL_SALES_PER_YEAR)
+        if validate_number_input(total_debt_input):
+            return int(total_debt_input)
+        print(INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)
+
+
+def input_current_market_value():
+    while True:
+        market_value = input(INPUT_CURRENT_MARKET_VALUE)
+        if validate_number_input(market_value):
+            return int(market_value)
+        print(INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)
+
+
+def input_type_of_property():
+    while True:
+        property_type = str(input(INPUT_PROPERTY_TYPE))
+        if validate_property_type(property_type):
+            return property_type_dic[property_type]
+        print(INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)
+
+
+def input_current_property_status():
+    while True:
+        property_status = str(input(INPUT_CURRENT_PROPERTY_STATUS))
+        if validate_property_status_input(property_status):
+            return property_status
+        print(INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)
+
+
+def input_location_of_property():
+    while True:
+        property_location = str(input(INPUT_PROPERTY_LOCATION_TYPE))
+        if validate_property_location(property_location):
+            return property_location_dic[property_location]
+        print(INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)
+
+
+def input_type_of_facility_applying():
+    while True:
+        type_of_facility_applying = str(input(INPUT_TYPE_OF_FACILITY_APPLYING))
+        if validate_type_of_facility_applying_input(type_of_facility_applying):
+            return type_of_facility_applying_dic[type_of_facility_applying]
+        print(INVALID_TYPE_OF_FACILITY_APPLYING_MESSAGE)
+
+
+def get_debt_sales_ratio_score(debt_sales_ratio) -> int:
+    if debt_sales_ratio > 70:
+        return 0
+    elif 60 <= debt_sales_ratio <= 70:
+        return 4
+    elif 50 <= debt_sales_ratio <= 59:
+        return 3
+    elif 40 <= debt_sales_ratio <= 49:
+        return 3
+    else:
+        return 1
+
+
+def get_to_income_ratio_score(debt_to_income_ratio) -> int:
+    if debt_to_income_ratio > 55:
+        return 0
+    elif 35 <= debt_to_income_ratio <= 55:
+        return 3
+    elif debt_to_income_ratio < 35:
+        return 1
+
+
+def get_loan_to_valuation_ratio_score(loan_to_valuation_ratio) -> int:
+    if loan_to_valuation_ratio > 80:
+        return 0
+    elif 60 <= loan_to_valuation_ratio <= 79:
+        return 2
+    elif loan_to_valuation_ratio < 60:
+        return 1
+
+
+def get_debt_to_sales_ratio(current_total_debt, total_sales_per_year) -> float:
+    return float(current_total_debt / total_sales_per_year) * 100
+
+
+def get_loan_to_valuation_ratio(applied_loan_amount, current_market_value) -> float:
+    return float(applied_loan_amount / current_market_value) * 100
+
+
+def get_debt_to_income_ratio(current_total_debt, gross_income) -> float:
+    return float(current_total_debt / gross_income) * 100
 
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+def analyze_borrow_information():
+    # Step 1: Borrower Details
+    borrower, borrower_credit_analysis = process_borrower_details()
+    if borrower_credit_analysis.borrower_analysis_status == BorrowStatus.REJECTED:
+        display_rejection_reasons(borrower_credit_analysis)
+        return
+
+        # Step 2: Financial Details
+    financial_borrower_details, borrower_credit_analysis = process_financial_details(borrower_credit_analysis)
+    if borrower_credit_analysis.borrower_analysis_status == BorrowStatus.REJECTED:
+        display_rejection_reasons(borrower_credit_analysis, include_financial=True)
+        return
+
+    # Step 3: Collateral Details
+    collateral_detail, borrower_credit_analysis = process_collateral_details(borrower_credit_analysis)
+    if borrower_credit_analysis.borrower_analysis_status == BorrowStatus.REJECTED:
+        display_rejection_reasons(borrower_credit_analysis, include_collateral=True)
+        return
+
+    # Step 4: Facility Details
+    borrower_credit_analysis = process_facility_details(collateral_detail, borrower_credit_analysis)
+
+    # Step 5: Final Analysis and Result
+    borrower_credit_analysis.display_credit_analysis_result()
+
+
+def process_borrower_details():
+    borrower_full_name, entity_type, client_bank_status, number_of_guarantors, age_of_guarantors, borrower_history = borrow_details()
+    borrower = Borrower(
+        borrower_full_name,
+        entity_type,
+        client_bank_status,
+        number_of_guarantors,
+        age_of_guarantors,
+        borrower_history
+    )
+    borrower_credit_analysis = BorrowerCreditAnalysis(borrower)
+    borrower_credit_analysis.get_borrower_information_details_score()
+    return borrower, borrower_credit_analysis
+
+
+def process_financial_details(borrower_credit_analysis):
+    current_total_debt, gross_income, total_sales_per_year, debt_to_sales_ratio, debt_to_income_ratio = financial_details()
+    financial_borrower_details = FinancialDetails(
+        current_total_debt, gross_income, total_sales_per_year, debt_to_sales_ratio, debt_to_income_ratio
+    )
+    borrower_credit_analysis.borrower_financial_details = financial_borrower_details
+    borrower_credit_analysis.get_financial_details_score()
+    return financial_borrower_details, borrower_credit_analysis
+
+
+def process_collateral_details(borrower_credit_analysis):
+    current_market_value, type_of_property, current_property_status, location_of_property = collateral_details()
+    collateral_detail = CollateralDetails(
+        current_market_value, type_of_property, current_property_status, location_of_property
+    )
+    borrower_credit_analysis.borrower_collateral_detail = collateral_detail
+    borrower_credit_analysis.get_collateral_details_score()
+    return collateral_detail, borrower_credit_analysis
+
+
+def process_facility_details(collateral_detail, borrower_credit_analysis):
+    type_of_facility_applying, applied_loan_amount = facility_details()
+    loan_to_valuation = get_loan_to_valuation_ratio(applied_loan_amount, collateral_detail.current_market_value)
+    facility_detail = FacilityDetails(type_of_facility_applying, applied_loan_amount, loan_to_valuation)
+    borrower_credit_analysis.borrower_facility_details = facility_detail
+    borrower_credit_analysis.calculate_score_and_update_status()
+    return borrower_credit_analysis
+
+
+def display_rejection_reasons(borrower_credit_analysis, include_financial=False, include_collateral=False):
+    borrower_credit_analysis.borrower_details_summary()
+    if include_financial:
+        borrower_credit_analysis.financial_details_summary()
+    if include_collateral:
+        borrower_credit_analysis.collateral_details_summary()
+
+    if borrower_credit_analysis.get_rejection_results()['rejection_reasons']:
+        print("Rejection Reasons:")
+        for reason in set(borrower_credit_analysis.get_rejection_results()['rejection_reasons']):
+            print(f"- {reason}")
+
 
 def borrow_details():
     borrower_full_name = input_borrower_full_name()
@@ -462,13 +1020,33 @@ def borrow_details():
     number_of_guarantors = input_number_of_guarantors()
     age_of_guarantors = input_age_of_guarantors()
     borrower_history = input_borrower_borrowing_history()
-    borrower = Borrower(borrower_full_name, entity_type, client_bank_status, number_of_guarantors, age_of_guarantors,
-                        borrower_history)
-    get_borrow_details_status(borrower)
-    borrower.display_borrower_info()
+    return borrower_full_name, entity_type, client_bank_status, number_of_guarantors, age_of_guarantors, borrower_history
+
+
+def collateral_details():
+    current_market_value = input_current_market_value()
+    type_of_property = input_type_of_property()
+    current_property_status = input_current_property_status()
+    location_of_property = input_location_of_property()
+    return current_market_value, type_of_property, current_property_status, location_of_property
+
+
+def financial_details():
+    current_total_debt = input_current_total_debt()
+    gross_income = input_gross_income()
+    total_sales_per_year = input_total_sales_per_year()
+    debt_to_sales_ratio = get_debt_to_sales_ratio(current_total_debt, total_sales_per_year)
+    debt_to_income_ratio = get_debt_to_income_ratio(current_total_debt, gross_income)
+    return current_total_debt, gross_income, total_sales_per_year, debt_to_sales_ratio, debt_to_income_ratio
+
+
+def facility_details():
+    type_of_facility_applying = input_type_of_facility_applying()
+    applied_loan_amount = input_applied_loan_amount()
+    return type_of_facility_applying, applied_loan_amount
 
 
 if __name__ == "__main__":
     run_tests()
     print_header()
-    borrow_details()
+    analyze_borrow_information()
