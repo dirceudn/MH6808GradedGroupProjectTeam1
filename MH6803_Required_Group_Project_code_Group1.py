@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Filename: main.py
+Filename: MH6803_Required_Group_Project_code_Group1.py
 Description: A credit analysis program
 Authors:
     - Dirceu de Medeiros Teixeira
@@ -8,11 +8,11 @@ Authors:
     - Kelvin Thein
     - Melani Sugiharti The
 Date Created: 2024-11-05
-Last Modified: 2024-11-05
+Last Modified: 2024-11-16
 Version: 1.0
 
 Usage:
-    python main.py
+    python MH6803_Required_Group_Project_code_Group1.py
 
 Dependencies:
     List any external dependencies or libraries.
@@ -205,7 +205,8 @@ class TestBorrowerDetails(unittest.TestCase):
     def test_display_rejection_reasons(self):
         borrower_credit_analysis = BorrowerCreditAnalysis()
         borrower_credit_analysis.rejection_reasons.append("Debt-to-sales ratio exceeds 70%.")
-        self.assertIn("Debt-to-sales ratio exceeds 70%.", borrower_credit_analysis.get_rejection_results()['rejection_reasons'])
+        self.assertIn("Debt-to-sales ratio exceeds 70%.",
+                      borrower_credit_analysis.get_rejection_results()['rejection_reasons'])
 
     @patch('builtins.input', side_effect=["50000", "100000", "200000"])
     def test_financial_details_inputs(self, mock_input):
@@ -227,6 +228,7 @@ class TestBorrowerDetails(unittest.TestCase):
         type_of_facility, applied_loan_amount = facility_details()
         self.assertEqual(type_of_facility, type_of_facility_applying_dic["1"], "Facility type mismatch")
         self.assertEqual(applied_loan_amount, 50000, "Loan amount mismatch")
+
 
 class TestResult(TextTestResult):
     def __init__(self, *args):
@@ -280,8 +282,8 @@ def run_tests():
 def print_header():
     header = f"""
     #################################################
-    #  Script: main.py
-    #  Run: python main.py
+    #  Script: MH6803_Required_Group_Project_code_Group1.py
+    #  Run: python MH6803_Required_Group_Project_code_Group1.py
     #  Description: A credit analysis program
     #  Authors: 
     #    - Dirceu de Medeiros Teixeira
@@ -289,7 +291,7 @@ def print_header():
     #    - Kelvin Thein
     #    - Melani Sugiharti The
     #  Date Created: 2024-11-05
-    #  Last Modified: 2024-11-15
+    #  Last Modified: 2024-11-16
     #  Version: 1.0
     ##################################################
     ##################################################
@@ -300,8 +302,6 @@ def print_header():
     """
     print(header)
 
-
-MIN_BORROWER_INFO_SCORE = 15
 
 INPUT_FULL_NAME_MESSAGE = "Please enter the borrower's full name: "
 INPUT_BORROWER_HISTORY = "Please enter the borrower's borrowing history A-Z: "
@@ -494,6 +494,8 @@ class BorrowerCreditAnalysis:
                     get_guarantor_score(self.borrower_information_details.number_of_guarantors) +
                     get_grade_history_score(self.borrower_information_details.borrowing_history.upper())
             )
+            if invalid_borrow_history_grade(self.borrower_information_details.borrowing_history):
+                self.rejection_reasons.append("Only borrowing history A,B or C are accepted.")
             if invalid_guarantors_age(self.borrower_information_details.age_of_guarantors):
                 self.rejection_reasons.append("Guarantor age is invalid (either below 21 or above 65).")
             if self.borrower_information_details.number_of_guarantors < 1:
@@ -587,8 +589,8 @@ class BorrowerCreditAnalysis:
     def borrower_details_summary(self):
         details = {
             "Full Name": self.borrower_information_details.full_name,
-            "Entity Type": self.borrower_information_details.entity_type.name,
-            "Bank Status": self.borrower_information_details.bank_status.name,
+            "Entity Type": entity_type_dic_name[self.borrower_information_details.entity_type],
+            "Bank Status": client_bank_status_dic_name[self.borrower_information_details.bank_status],
             "Number of Guarantors": self.borrower_information_details.number_of_guarantors,
             "Age of Guarantors": self.borrower_information_details.age_of_guarantors,
             "Borrowing History": self.borrower_information_details.borrowing_history,
@@ -609,15 +611,17 @@ class BorrowerCreditAnalysis:
     def collateral_details_summary(self):
         details = {
             "Current Market Value (CVM)": self.borrower_collateral_detail.current_market_value,
-            "Type of Property": self.borrower_collateral_detail.type_of_property,
-            "Location of Property": self.borrower_collateral_detail.location_of_the_property,
+            "Type of Property": property_type_dic_name[self.borrower_collateral_detail.type_of_property],
+            "Location of Property": property_location_dic_name[
+                self.borrower_collateral_detail.location_of_the_property],
             "Collateral Score": self.get_collateral_details_score(),
         }
         self.display_section("Collateral Details", details)
 
     def facility_details_summary(self):
         details = {
-            "Type of Facility Applying": self.borrower_facility_details.type_of_facility_applying,
+            "Type of Facility Applying": type_of_facility_applying_dic_name[
+                self.borrower_facility_details.type_of_facility_applying],
             "Applied Loan Amount": self.borrower_facility_details.applied_loan_amount,
             "Loan to Valuation": self.borrower_facility_details.loan_to_valuation,
             "Facility Score": self.get_facility_details_score(),
@@ -641,6 +645,30 @@ class BorrowerCreditAnalysis:
         self.facility_details_summary()
         self.loan_status()
 
+
+entity_type_dic_name = {EntityType.SOLE_PROPRIETORSHIP: "Solo Proprietorship",
+                        EntityType.LIMITED_PARTNERSHIP: "Limited Partnership",
+                        EntityType.COMPANY_LIMITED: "Company Limited"}
+
+property_type_dic_name = {TypeProperty.RESIDENTIAL_LANDED: "Residential Landed",
+                          TypeProperty.RESIDENTIAL_APARTMENT: "Residential Apartment",
+                          TypeProperty.COMMERCIAL: "Commercial",
+                          TypeProperty.OTHER: "other"}
+
+property_location_dic_name = {LocationProperty.CENTRAL_AREA: "Central Area",
+                              LocationProperty.URBAN: "Urban",
+                              LocationProperty.SUBURBAN: "Suburban"}
+
+current_property_status_dic_name = {CurrentPropertyStatus.UNDER_CONSTRUCTION: "Under construction",
+                                    CurrentPropertyStatus.COMPLETED: "Completed"}
+
+type_of_facility_applying_dic_name = {
+    TypeFacilityApplying.REVOLVING_CREDIT: "Revolving credit",
+    TypeFacilityApplying.TERM_LOAN: "Term loan"}
+
+client_bank_status_dic_name = {
+    ClientBankStatus.NEW_BANK: "New bank",
+    ClientBankStatus.EXISTING_TO_A_BANK: "Existing to a bank"}
 
 entity_type_dic = {"1": EntityType.SOLE_PROPRIETORSHIP,
                    "2": EntityType.LIMITED_PARTNERSHIP,
@@ -917,14 +945,20 @@ def get_loan_to_valuation_ratio_score(loan_to_valuation_ratio) -> int:
 
 
 def get_debt_to_sales_ratio(current_total_debt, total_sales_per_year) -> float:
+    if total_sales_per_year == 0:
+        return 0.0
     return float(current_total_debt / total_sales_per_year) * 100
 
 
 def get_loan_to_valuation_ratio(applied_loan_amount, current_market_value) -> float:
+    if current_market_value == 0:
+        return 0.0
     return float(applied_loan_amount / current_market_value) * 100
 
 
 def get_debt_to_income_ratio(current_total_debt, gross_income) -> float:
+    if gross_income == 0:
+        return 0.0
     return float(current_total_debt / gross_income) * 100
 
 
@@ -937,7 +971,7 @@ def analyze_borrow_information():
         display_rejection_reasons(borrower_credit_analysis)
         return
 
-        # Step 2: Financial Details
+    # Step 2: Financial Details
     financial_borrower_details, borrower_credit_analysis = process_financial_details(borrower_credit_analysis)
     if borrower_credit_analysis.borrower_analysis_status == BorrowStatus.REJECTED:
         display_rejection_reasons(borrower_credit_analysis, include_financial=True)
