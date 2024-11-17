@@ -548,6 +548,7 @@ class BorrowerCreditAnalysis:
             loan_to_valuation_score = get_loan_to_valuation_ratio_score(
                 get_loan_to_valuation_ratio(self.borrower_facility_details.applied_loan_amount,
                                             self.borrower_collateral_detail.current_market_value))
+
             if loan_to_valuation_score == 0:
                 self.rejection_reasons.append("Loan-to-valuation ratio exceeds 80%.")
                 self.borrower_analysis_status = BorrowStatus.REJECTED
@@ -918,6 +919,8 @@ def get_loan_to_valuation_ratio_score(loan_to_valuation_ratio) -> int:
     elif 60 <= loan_to_valuation_ratio <= 79:
         return 2
     elif loan_to_valuation_ratio < 60:
+        return 1
+    else:
         return 1
 
 
