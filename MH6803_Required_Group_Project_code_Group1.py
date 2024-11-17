@@ -22,6 +22,7 @@ License:
 """
 
 import re
+import locale
 import unittest
 from enum import Enum, auto
 from unittest.mock import patch
@@ -420,6 +421,9 @@ class TypeFacilityApplying(Enum):
     TERM_LOAN = 1
 
 
+locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
+
 class FinancialDetails:
     def __init__(self, current_total_debt, gross_income, total_sales_per_year, debt_to_sales_ration,
                  debt_to_income_ratio):
@@ -600,17 +604,19 @@ class BorrowerCreditAnalysis:
 
     def financial_details_summary(self):
         details = {
-            "Current Total Debt": self.borrower_financial_details.current_total_debt,
-            "Gross Income": self.borrower_financial_details.gross_income,
-            "Total Sales per Year": self.borrower_financial_details.total_sales_per_year,
-            "Debt to Income Ratio": self.borrower_financial_details.debt_to_income_ratio,
+            "Current Total Debt": locale.currency(self.borrower_financial_details.current_total_debt, grouping=True),
+            "Gross Income": locale.currency(self.borrower_financial_details.gross_income, grouping=True),
+            "Total Sales per Year": locale.currency(self.borrower_financial_details.total_sales_per_year,
+                                                    grouping=True),
+            "Debt to Income Ratio": f"{self.borrower_financial_details.debt_to_income_ratio:.2f}%",
             "Financial Score": self.get_financial_details_score(),
         }
         self.display_section("Financial Details", details)
 
     def collateral_details_summary(self):
         details = {
-            "Current Market Value (CVM)": self.borrower_collateral_detail.current_market_value,
+            "Current Market Value (CVM)": locale.currency(self.borrower_collateral_detail.current_market_value,
+                                                          grouping=True),
             "Type of Property": property_type_dic_name[self.borrower_collateral_detail.type_of_property],
             "Location of Property": property_location_dic_name[
                 self.borrower_collateral_detail.location_of_the_property],
@@ -622,8 +628,8 @@ class BorrowerCreditAnalysis:
         details = {
             "Type of Facility Applying": type_of_facility_applying_dic_name[
                 self.borrower_facility_details.type_of_facility_applying],
-            "Applied Loan Amount": self.borrower_facility_details.applied_loan_amount,
-            "Loan to Valuation": self.borrower_facility_details.loan_to_valuation,
+            "Applied Loan Amount": locale.currency(self.borrower_facility_details.applied_loan_amount, grouping=True),
+            "Loan to Valuation": f"{self.borrower_facility_details.loan_to_valuation:.2f}%",
             "Facility Score": self.get_facility_details_score(),
         }
         self.display_section("Facility Details", details)
@@ -1106,7 +1112,6 @@ def main_menu():
             break
         else:
             print("Invalid option. Please try again.")
-
 
 
 if __name__ == "__main__":
