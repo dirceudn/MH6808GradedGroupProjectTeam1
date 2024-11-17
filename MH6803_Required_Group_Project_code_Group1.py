@@ -747,6 +747,24 @@ def get_guarantor_score(guarantors: int) -> int:
             return 2
 
 
+# --------------------------------------- Input with exit option -------------------------------------------------------
+
+class ReturnToMenu(Exception):
+    """Exception to signal returning to the main menu."""
+    pass
+
+
+def input_with_exit_option(prompt, validation_func=None, error_message="Invalid input. Please try again."):
+    while True:
+        print("Type 'q' to return to the main menu.")  # Display option to quit
+        user_input = input(prompt).strip()
+        if user_input.lower() == "q":  # Quit option
+            raise ReturnToMenu()
+        if validation_func is None or validation_func(user_input):  # Validate input
+            return user_input
+        print(error_message)
+
+
 # -------------------------------------- Validate functions ------------------------------------------------------------
 
 def validate_full_name(name: str) -> bool:
@@ -795,122 +813,75 @@ def validate_type_of_facility_applying_input(option: str) -> bool:
 # ---------------------------------- Input functions -------------------------------------------------------------------
 
 def input_borrower_full_name() -> str:
-    while True:
-        borrower_full_name = input(INPUT_FULL_NAME_MESSAGE)
-        if validate_full_name(borrower_full_name):
-            return borrower_full_name
+    return input_with_exit_option(INPUT_FULL_NAME_MESSAGE, validate_full_name, INVALID_NAME_MESSAGE)
 
 
 def input_borrower_borrowing_history() -> str:
-    while True:
-        borrower_borrowing_history = str(input(INPUT_BORROWER_HISTORY))
-        if validate_borrower_history(borrower_borrowing_history):
-            return borrower_borrowing_history
-        print(INVALID_BORROWER_HISTORY_MESSAGE)
+    return input_with_exit_option(INPUT_BORROWER_HISTORY, validate_borrower_history, INVALID_BORROWER_HISTORY_MESSAGE)
 
 
 def input_client_bank_status():
-    while True:
-        bank_status = str(input(INPUT_CLIENT_BANK_STATUS))
-        if validate_client_bank_status_option(bank_status):
-            return client_bank_status_dic[bank_status]
-        print(ERROR_MESSAGE_CLIENT_BANK_STATUS)
+    result = input_with_exit_option(INPUT_CLIENT_BANK_STATUS, validate_client_bank_status_option,
+                                    ERROR_MESSAGE_CLIENT_BANK_STATUS)
+    return client_bank_status_dic[result]
 
 
 def input_entity_type():
-    while True:
-        entity_type = str(input(INPUT_ENTITY_TYPE))
-        if validate_entity_type(entity_type):
-            return entity_type_dic[entity_type]
-        print(ERROR_MESSAGE_ENTITY_TYPE)
+    result = input_with_exit_option(INPUT_ENTITY_TYPE, validate_entity_type, ERROR_MESSAGE_ENTITY_TYPE)
+    return entity_type_dic[result]
 
 
 def input_number_of_guarantors() -> int:
-    while True:
-        number_guarantors = input(INPUT_NUMBER_OF_GUARANTORS)
-        if validate_number_input(number_guarantors):
-            return int(number_guarantors)
-        print(INVALID_NUMBER_GUARANTOR_MESSAGE)
+    return int(
+        input_with_exit_option(INPUT_NUMBER_OF_GUARANTORS, validate_number_input, INVALID_NUMBER_GUARANTOR_MESSAGE))
 
 
 def input_age_of_guarantors() -> int:
-    while True:
-        age_guarantors = input(INPUT_AGE_OF_GUARANTORS)
-        if validate_number_input(age_guarantors):
-            return int(age_guarantors)
-        print(INVALID_NUMBER_GUARANTOR_MESSAGE)
+    return int(input_with_exit_option(INPUT_AGE_OF_GUARANTORS, validate_number_input, INVALID_NUMBER_GUARANTOR_MESSAGE))
 
 
 def input_current_total_debt():
-    while True:
-        total_debt_input = input(INPUT_TOTAL_DEBT_MESSAGE)
-        if validate_number_input(total_debt_input):
-            return int(total_debt_input)
-        print(INVALID_TOTAL_DEBT_MESSAGE)
+    return int(input_with_exit_option(INPUT_TOTAL_DEBT_MESSAGE, validate_number_input, INVALID_TOTAL_DEBT_MESSAGE))
 
 
 def input_gross_income():
-    while True:
-        total_debt_input = input(INPUT_GROSS_INCOME_MESSAGE)
-        if validate_number_input(total_debt_input):
-            return int(total_debt_input)
-        print(INVALID_TOTAL_INCOME_MESSAGE)
+    return int(input_with_exit_option(INPUT_GROSS_INCOME_MESSAGE, validate_number_input, INVALID_TOTAL_INCOME_MESSAGE))
 
 
 def input_applied_loan_amount():
-    while True:
-        loan_amount = input(INPUT_APPLIED_LOAN_AMOUNT)
-        if validate_number_input(loan_amount):
-            return int(loan_amount)
-        print(INVALID_APPLIED_LOAN_AMOUNT_MESSAGE)
+    return int(
+        input_with_exit_option(INPUT_APPLIED_LOAN_AMOUNT, validate_number_input, INVALID_APPLIED_LOAN_AMOUNT_MESSAGE))
 
 
 def input_total_sales_per_year():
-    while True:
-        total_debt_input = input(INPUT_TOTAL_SALES_PER_YEAR)
-        if validate_number_input(total_debt_input):
-            return int(total_debt_input)
-        print(INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)
+    return int(
+        input_with_exit_option(INPUT_TOTAL_SALES_PER_YEAR, validate_number_input, INVALID_TOTAL_SALES_PER_YEAR_MESSAGE))
 
 
 def input_current_market_value():
-    while True:
-        market_value = input(INPUT_CURRENT_MARKET_VALUE)
-        if validate_number_input(market_value):
-            return int(market_value)
-        print(INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)
+    return int(input_with_exit_option(INPUT_CURRENT_MARKET_VALUE, validate_number_input, INVALID_CURRENT_MARKET_VALUE))
 
 
 def input_type_of_property():
-    while True:
-        property_type = str(input(INPUT_PROPERTY_TYPE))
-        if validate_property_type(property_type):
-            return property_type_dic[property_type]
-        print(INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)
+    return property_type_dic[
+        input_with_exit_option(INPUT_PROPERTY_TYPE, validate_property_type, INVALID_TYPE_PROPERTY_MESSAGE)]
 
 
 def input_current_property_status():
-    while True:
-        property_status = str(input(INPUT_CURRENT_PROPERTY_STATUS))
-        if validate_property_status_input(property_status):
-            return property_status
-        print(INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)
+    return current_property_status_dic[
+        input_with_exit_option(INPUT_CURRENT_PROPERTY_STATUS, validate_property_status_input,
+                               INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)]
 
 
 def input_location_of_property():
-    while True:
-        property_location = str(input(INPUT_PROPERTY_LOCATION_TYPE))
-        if validate_property_location(property_location):
-            return property_location_dic[property_location]
-        print(INVALID_TOTAL_SALES_PER_YEAR_MESSAGE)
+    return property_location_dic[input_with_exit_option(INPUT_PROPERTY_LOCATION_TYPE, validate_property_location,
+                                                        INVALID_PROPERTY_LOCATION_TYPE_MESSAGE)]
 
 
 def input_type_of_facility_applying():
-    while True:
-        type_of_facility_applying = str(input(INPUT_TYPE_OF_FACILITY_APPLYING))
-        if validate_type_of_facility_applying_input(type_of_facility_applying):
-            return type_of_facility_applying_dic[type_of_facility_applying]
-        print(INVALID_TYPE_OF_FACILITY_APPLYING_MESSAGE)
+    return type_of_facility_applying_dic[
+        input_with_exit_option(INPUT_TYPE_OF_FACILITY_APPLYING, validate_type_of_facility_applying_input,
+                               INVALID_TYPE_OF_FACILITY_APPLYING_MESSAGE)]
 
 
 def get_debt_sales_ratio_score(debt_sales_ratio) -> int:
@@ -965,29 +936,37 @@ def get_debt_to_income_ratio(current_total_debt, gross_income) -> float:
 # ----------------------------------------------------------------------------------------------------------------------
 
 def analyze_borrow_information():
-    # Step 1: Borrower Details
-    borrower, borrower_credit_analysis = process_borrower_details()
-    if borrower_credit_analysis.borrower_analysis_status == BorrowStatus.REJECTED:
-        display_rejection_reasons(borrower_credit_analysis)
-        return
+    try:
+        print("\n--- Analyze Borrower Information ---")
+        # Step 1: Borrower Details
+        borrower, borrower_credit_analysis = process_borrower_details()
 
-    # Step 2: Financial Details
-    financial_borrower_details, borrower_credit_analysis = process_financial_details(borrower_credit_analysis)
-    if borrower_credit_analysis.borrower_analysis_status == BorrowStatus.REJECTED:
-        display_rejection_reasons(borrower_credit_analysis, include_financial=True)
-        return
+        if borrower_credit_analysis.borrower_analysis_status == BorrowStatus.REJECTED:
+            display_rejection_reasons(borrower_credit_analysis)
+            return
 
-    # Step 3: Collateral Details
-    collateral_detail, borrower_credit_analysis = process_collateral_details(borrower_credit_analysis)
-    if borrower_credit_analysis.borrower_analysis_status == BorrowStatus.REJECTED:
-        display_rejection_reasons(borrower_credit_analysis, include_collateral=True)
-        return
+        # Step 2: Financial Details
+        financial_borrower_details, borrower_credit_analysis = process_financial_details(borrower_credit_analysis)
 
-    # Step 4: Facility Details
-    borrower_credit_analysis = process_facility_details(collateral_detail, borrower_credit_analysis)
+        if borrower_credit_analysis.borrower_analysis_status == BorrowStatus.REJECTED:
+            display_rejection_reasons(borrower_credit_analysis, include_financial=True)
+            return
 
-    # Step 5: Final Analysis and Result
-    borrower_credit_analysis.display_credit_analysis_result()
+        # Step 3: Collateral Details
+        collateral_detail, borrower_credit_analysis = process_collateral_details(borrower_credit_analysis)
+
+        if borrower_credit_analysis.borrower_analysis_status == BorrowStatus.REJECTED:
+            display_rejection_reasons(borrower_credit_analysis, include_collateral=True)
+            return
+
+        # Step 4: Facility Details
+        borrower_credit_analysis = process_facility_details(collateral_detail, borrower_credit_analysis)
+
+        # Step 5: Final Analysis and Result
+        borrower_credit_analysis.display_credit_analysis_result()
+
+    except ReturnToMenu:
+        print("\nReturning to the main menu...\n")
 
 
 def process_borrower_details():
@@ -1080,7 +1059,56 @@ def facility_details():
     return type_of_facility_applying, applied_loan_amount
 
 
+def display_help_menu():
+    print("\n" + "=" * 50)
+    print(" " * 15 + "HELP MENU")
+    print("=" * 50)
+    print("\nThis program is a comprehensive credit analysis tool designed to:")
+    print("✔ Evaluate borrower creditworthiness.")
+    print("✔ Analyze financial, collateral, and loan details.")
+    print("\nKey Features:")
+    print("- Borrower Details: Includes name, borrowing history, guarantors, and age verification.")
+    print("- Financial Analysis: Calculates debt-to-income and debt-to-sales ratios.")
+    print("- Collateral Evaluation: Assesses property type, value, and location.")
+    print("- Loan Facility: Analyzes loan application types and loan-to-valuation ratios.")
+    print("\nMenu Options:")
+    print("1. Run Tests: Validates the program's functionality using pre-written unit tests.")
+    print("2. Analyze Borrower Information: Guides you through entering:")
+    print("   - Borrower Details")
+    print("   - Financial Details")
+    print("   - Collateral Details")
+    print("   - Facility Details")
+    print("3. Help: Displays this help menu with detailed guidance.")
+    print("4. Exit: Closes the program.")
+    print("\nTips:")
+    print("- During data entry, type 'q' at any prompt to return to the main menu.")
+    print("- Follow the on-screen instructions for accurate data entry.")
+    print("\n" + "=" * 50)
+
+
+def main_menu():
+    while True:
+        print("\n--- Main Menu ---")
+        print("1. Run Tests")
+        print("2. Analyze Borrower Information")
+        print("3. Help")
+        print("4. Exit")
+        choice = input("Choose an option: ")
+
+        if choice == "1":
+            run_tests()
+        elif choice == "2":
+            analyze_borrow_information()
+        elif choice == "3":
+            display_help_menu()
+        elif choice == "4":
+            print("Exiting the program. Goodbye!")
+            break
+        else:
+            print("Invalid option. Please try again.")
+
+
+
 if __name__ == "__main__":
-    run_tests()
     print_header()
-    analyze_borrow_information()
+    main_menu()
